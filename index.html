@@ -1,0 +1,814 @@
+<!DOCTYPE html>
+<html lang="id">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>QR Absensi — Sistem Kehadiran Sekolah</title>
+<link href="https://fonts.googleapis.com/css2?family=Space+Mono:wght@400;700&family=Sora:wght@300;400;600;700;800&display=swap" rel="stylesheet">
+<script src="https://cdnjs.cloudflare.com/ajax/libs/qrcodejs/1.0.0/qrcode.min.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/jsQR/1.4.0/jsQR.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js"></script>
+<style>
+:root {
+  --bg:#080c18;--bg2:#0d1422;--bg3:#131d31;--border:#1c2b42;
+  --accent:#00c9ff;--accent-dim:rgba(0,201,255,0.12);
+  --green:#00e5a0;--green-dim:rgba(0,229,160,0.12);
+  --red:#ff4d6d;--red-dim:rgba(255,77,109,0.12);
+  --yellow:#ffd166;--yellow-dim:rgba(255,209,102,0.12);
+  --text:#ddeeff;--text2:#5a7a9a;--card:#0e1827;
+}
+*{margin:0;padding:0;box-sizing:border-box;}
+body{background:var(--bg);color:var(--text);font-family:'Sora',sans-serif;min-height:100vh;}
+body::before{content:'';position:fixed;inset:0;background-image:linear-gradient(rgba(0,201,255,0.025) 1px,transparent 1px),linear-gradient(90deg,rgba(0,201,255,0.025) 1px,transparent 1px);background-size:48px 48px;pointer-events:none;z-index:0;}
+.app{position:relative;z-index:1;display:flex;flex-direction:column;min-height:100vh;}
+.topbar{display:flex;align-items:center;justify-content:space-between;padding:14px 24px;background:rgba(8,12,24,0.95);backdrop-filter:blur(12px);border-bottom:1px solid var(--border);position:sticky;top:0;z-index:100;}
+.logo{display:flex;align-items:center;gap:10px;}
+.logo-icon{width:34px;height:34px;background:var(--accent);border-radius:8px;display:flex;align-items:center;justify-content:center;font-size:16px;}
+.logo-text{font-weight:800;font-size:15px;}.logo-text span{color:var(--accent);}
+.nav-tabs{display:flex;gap:4px;background:var(--bg2);border:1px solid var(--border);border-radius:10px;padding:4px;}
+.nav-tab{padding:8px 14px;border-radius:7px;cursor:pointer;font-size:13px;font-weight:600;color:var(--text2);transition:all .2s;border:none;background:none;white-space:nowrap;font-family:'Sora',sans-serif;}
+.nav-tab:hover{color:var(--text);background:var(--bg3);}.nav-tab.active{background:var(--accent);color:#000;}
+#clockDisplay{font-size:11px;color:var(--text2);font-family:'Space Mono',monospace;text-align:right;}
+.main{flex:1;padding:24px;max-width:1300px;margin:0 auto;width:100%;}
+.section{display:none;}.section.active{display:block;}
+.page-title{font-size:22px;font-weight:800;margin-bottom:4px;}.page-title span{color:var(--accent);}
+.page-sub{color:var(--text2);font-size:13px;margin-bottom:22px;}
+.card{background:var(--card);border:1px solid var(--border);border-radius:14px;padding:22px;box-shadow:0 4px 24px rgba(0,0,0,.4);}
+.form-grid{display:grid;grid-template-columns:1fr 1fr;gap:12px;margin-bottom:14px;}
+.fg{display:flex;flex-direction:column;gap:5px;}.fg.full{grid-column:1/-1;}
+label{font-size:11px;font-weight:700;color:var(--text2);text-transform:uppercase;letter-spacing:.8px;}
+input,select{background:var(--bg2);border:1px solid var(--border);border-radius:8px;padding:9px 12px;color:var(--text);font-family:'Sora',sans-serif;font-size:13px;outline:none;transition:border-color .2s;width:100%;}
+input:focus,select:focus{border-color:var(--accent);}input::placeholder{color:var(--text2);}
+.btn{padding:9px 18px;border-radius:8px;font-family:'Sora',sans-serif;font-size:13px;font-weight:700;cursor:pointer;border:none;transition:all .2s;display:inline-flex;align-items:center;gap:7px;white-space:nowrap;}
+.btn-p{background:var(--accent);color:#000;}.btn-p:hover{background:#33d6ff;transform:translateY(-1px);}
+.btn-g{background:var(--bg3);color:var(--text);border:1px solid var(--border);}.btn-g:hover{border-color:var(--accent);color:var(--accent);}
+.btn-d{background:var(--red-dim);color:var(--red);border:1px solid rgba(255,77,109,.3);}.btn-d:hover{background:var(--red);color:#fff;}
+.btn-s{background:var(--green-dim);color:var(--green);border:1px solid rgba(0,229,160,.3);}
+.sm{padding:6px 12px;font-size:12px;}
+.upload-area{border:2px dashed var(--border);border-radius:12px;padding:28px;text-align:center;cursor:pointer;transition:all .2s;}
+.upload-area:hover,.upload-area.over{border-color:var(--accent);background:var(--accent-dim);}
+.list-top{display:flex;align-items:center;justify-content:space-between;margin-bottom:14px;flex-wrap:wrap;gap:8px;}
+.cbadge{background:var(--accent-dim);color:var(--accent);border:1px solid rgba(0,201,255,.3);padding:3px 10px;border-radius:20px;font-size:12px;font-weight:700;font-family:'Space Mono',monospace;}
+.tw{overflow-x:auto;border-radius:10px;}
+table{width:100%;border-collapse:collapse;}
+thead tr{background:var(--bg2);}
+th{padding:10px 14px;text-align:left;font-size:11px;font-weight:700;color:var(--text2);text-transform:uppercase;letter-spacing:.8px;white-space:nowrap;}
+td{padding:10px 14px;font-size:13px;border-top:1px solid var(--border);}
+tbody tr:hover{background:rgba(255,255,255,.02);}
+.mono{font-family:'Space Mono',monospace;font-size:12px;}
+.tag{display:inline-block;padding:2px 9px;border-radius:20px;font-size:11px;font-weight:700;}
+.tb{background:var(--accent-dim);color:var(--accent);border:1px solid rgba(0,201,255,.2);}
+.tg{background:var(--green-dim);color:var(--green);border:1px solid rgba(0,229,160,.2);}
+.ty{background:var(--yellow-dim);color:var(--yellow);border:1px solid rgba(255,209,102,.2);}
+.empty{text-align:center;padding:40px 24px;color:var(--text2);}
+.empty-i{font-size:40px;margin-bottom:10px;}.empty-t{font-size:13px;}
+.qr-grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(200px,1fr));gap:18px;margin-top:18px;}
+.qr-card{background:var(--card);border:1px solid var(--border);border-radius:14px;padding:18px;text-align:center;transition:all .2s;}
+.qr-card:hover{border-color:var(--accent);transform:translateY(-2px);box-shadow:0 8px 28px rgba(0,201,255,.1);}
+.qr-box{width:136px;height:136px;margin:0 auto 12px;background:#fff;border-radius:10px;padding:7px;display:flex;align-items:center;justify-content:center;}
+.qr-box canvas,.qr-box img{width:122px!important;height:122px!important;}
+.qr-name{font-weight:700;font-size:13px;margin-bottom:3px;}
+.qr-det{color:var(--text2);font-size:11px;line-height:1.6;}
+.qr-id{font-family:'Space Mono',monospace;font-size:9px;color:var(--text2);margin-top:7px;background:var(--bg2);padding:2px 7px;border-radius:4px;display:inline-block;}
+
+/* ===== CAMERA SYSTEM — FIXED ===== */
+.sc-layout{display:grid;grid-template-columns:1fr 340px;gap:22px;}
+.cam-wrapper{display:flex;flex-direction:column;gap:10px;}
+.cam-box{
+  background:var(--card);border:1px solid var(--border);border-radius:14px;
+  overflow:hidden;position:relative;
+  width:100%;
+  /* Maintain 4:3 ratio without aspect-ratio (better compat) */
+  padding-top:75%;
+}
+.cam-inner{
+  position:absolute;inset:0;
+  display:flex;align-items:center;justify-content:center;
+}
+.cam-box video{
+  position:absolute;inset:0;
+  width:100%;height:100%;
+  object-fit:cover;
+  display:none;
+  border-radius:14px;
+}
+/* The overlay canvas MUST match video display size exactly */
+#oCanvas{
+  position:absolute;inset:0;
+  width:100%;height:100%;
+  pointer-events:none;
+  z-index:10;
+}
+.cam-ph{text-align:center;color:var(--text2);padding:20px;}
+.cam-ph .pi{font-size:44px;margin-bottom:12px;}
+.flash{position:absolute;inset:0;background:var(--green);opacity:0;transition:opacity .12s;pointer-events:none;border-radius:14px;z-index:20;}
+.flash.on{opacity:.35;}
+
+/* Cooldown ring */
+.cooldown-ring{
+  position:absolute;bottom:12px;right:12px;z-index:15;
+  width:38px;height:38px;display:none;
+}
+.cooldown-ring svg{width:38px;height:38px;transform:rotate(-90deg);}
+.cooldown-ring circle{fill:none;stroke:var(--border);stroke-width:3;}
+.cooldown-ring .progress{stroke:var(--green);stroke-width:3;stroke-linecap:round;
+  stroke-dasharray:100;stroke-dashoffset:100;transition:stroke-dashoffset .1s linear;}
+
+/* Camera selector */
+.cam-selector{display:flex;gap:8px;align-items:center;flex-wrap:wrap;}
+.cam-selector select{flex:1;min-width:0;}
+
+.sc-panel{display:flex;flex-direction:column;gap:14px;}
+.sc-stats{display:grid;grid-template-columns:1fr 1fr;gap:10px;}
+.sc-stat{background:var(--card);border:1px solid var(--border);border-radius:12px;padding:16px;text-align:center;}
+.sc-stat-i{font-size:28px;margin-bottom:6px;}
+.sc-stat-l{font-size:11px;color:var(--text2);font-weight:600;text-transform:uppercase;letter-spacing:.5px;}
+.sc-stat-v{font-size:22px;font-weight:800;font-family:'Space Mono',monospace;margin-top:3px;}
+.ls-box{background:var(--card);border:1px solid var(--border);border-radius:14px;overflow:hidden;}
+.ls-photo{width:100%;aspect-ratio:4/3;object-fit:cover;display:block;}
+.ls-ph{width:100%;aspect-ratio:4/3;background:var(--bg2);display:flex;align-items:center;justify-content:center;color:var(--text2);font-size:36px;}
+.ls-info{padding:14px;}
+.ls-lbl{font-size:10px;font-weight:700;color:var(--text2);text-transform:uppercase;letter-spacing:1px;margin-bottom:7px;}
+.ls-name{font-size:15px;font-weight:800;margin-bottom:3px;}
+.ls-det{font-size:12px;color:var(--text2);}
+.ls-time{font-family:'Space Mono',monospace;font-size:11px;color:var(--accent);margin-top:7px;}
+.rec-list{display:flex;flex-direction:column;gap:7px;max-height:190px;overflow-y:auto;}
+.rec-item{display:flex;align-items:center;gap:9px;padding:9px 11px;background:var(--bg2);border-radius:8px;border:1px solid var(--border);}
+.rec-th{width:34px;height:34px;border-radius:6px;object-fit:cover;background:var(--bg3);flex-shrink:0;}
+.rec-n{font-size:12px;font-weight:700;}.rec-t{font-size:10px;color:var(--text2);font-family:'Space Mono',monospace;}
+.sc-bar{background:var(--card);border:1px solid var(--border);border-radius:8px;padding:9px 14px;font-size:12px;color:var(--text2);}
+
+/* Status indicator dot */
+.status-dot{display:inline-block;width:8px;height:8px;border-radius:50%;background:var(--text2);margin-right:6px;vertical-align:middle;}
+.status-dot.green{background:var(--green);box-shadow:0 0 6px var(--green);}
+.status-dot.red{background:var(--red);}
+.status-dot.yellow{background:var(--yellow);animation:blink .8s infinite;}
+@keyframes blink{0%,100%{opacity:1}50%{opacity:.3}}
+
+.stats-row{display:grid;grid-template-columns:repeat(4,1fr);gap:14px;margin-bottom:22px;}
+.st-card{background:var(--card);border:1px solid var(--border);border-radius:12px;padding:16px 18px;}
+.st-num{font-size:26px;font-weight:800;font-family:'Space Mono',monospace;color:var(--accent);}
+.st-lbl{font-size:11px;color:var(--text2);margin-top:2px;}
+.rk-bar{display:flex;align-items:center;justify-content:space-between;margin-bottom:18px;flex-wrap:wrap;gap:10px;}
+.rk-f,.rk-a{display:flex;gap:8px;align-items:center;flex-wrap:wrap;}
+.att-ph{width:40px;height:40px;border-radius:7px;object-fit:cover;border:2px solid var(--border);}
+#notif{position:fixed;top:76px;right:22px;z-index:999;padding:12px 18px;border-radius:10px;font-size:13px;font-weight:700;opacity:0;transform:translateX(120%);transition:all .3s;max-width:310px;pointer-events:none;}
+#notif.show{opacity:1;transform:translateX(0);}
+#notif.success{background:var(--green-dim);color:var(--green);border:1px solid var(--green);}
+#notif.error{background:var(--red-dim);color:var(--red);border:1px solid var(--red);}
+#notif.warning{background:var(--yellow-dim);color:var(--yellow);border:1px solid var(--yellow);}
+#notif.info{background:var(--accent-dim);color:var(--accent);border:1px solid var(--accent);}
+.mo{position:fixed;inset:0;background:rgba(0,0,0,.75);backdrop-filter:blur(4px);z-index:200;display:none;align-items:center;justify-content:center;}
+.mo.open{display:flex;}
+.md{background:var(--bg2);border:1px solid var(--border);border-radius:16px;padding:26px;max-width:420px;width:90%;box-shadow:0 20px 60px rgba(0,0,0,.7);}
+.md-t{font-size:17px;font-weight:800;margin-bottom:14px;}
+.md-b{color:var(--text2);font-size:13px;line-height:1.6;}
+.md-a{display:flex;gap:9px;justify-content:flex-end;margin-top:18px;}
+
+/* Info banner */
+.info-banner{background:var(--accent-dim);border:1px solid rgba(0,201,255,.25);border-radius:10px;padding:12px 16px;font-size:12px;color:var(--text2);line-height:1.6;margin-bottom:18px;}
+.info-banner strong{color:var(--accent);}
+
+::-webkit-scrollbar{width:5px;height:5px;}::-webkit-scrollbar-track{background:transparent;}::-webkit-scrollbar-thumb{background:var(--border);border-radius:3px;}
+@media print{.topbar,.btn,#notif{display:none!important;}.qr-grid{display:grid;grid-template-columns:repeat(3,1fr);}.qr-card{border:1px solid #ccc;break-inside:avoid;}.qr-box{background:white;}body{background:white;color:black;}body::before{display:none;}}
+@media(max-width:900px){.sc-layout{grid-template-columns:1fr;}.stats-row{grid-template-columns:repeat(2,1fr);}}
+@media(max-width:600px){.form-grid{grid-template-columns:1fr;}.nav-tab{padding:7px 9px;font-size:11px;}.main{padding:14px;}.topbar{padding:12px 14px;}}
+</style>
+</head>
+<body>
+<div class="app">
+<div class="topbar">
+  <div class="logo">
+    <div class="logo-icon">📋</div>
+    <div class="logo-text">QR<span>Absensi</span></div>
+  </div>
+  <div class="nav-tabs">
+    <button class="nav-tab active" onclick="showTab('admin',this)">👤 Data Siswa</button>
+    <button class="nav-tab" onclick="showTab('qrcards',this)">🎫 Kartu QR</button>
+    <button class="nav-tab" onclick="showTab('scanner',this)">📷 Scan</button>
+    <button class="nav-tab" onclick="showTab('rekap',this)">📊 Rekap</button>
+  </div>
+  <div id="clockDisplay"></div>
+</div>
+
+<div class="main">
+
+<!-- DATA SISWA -->
+<div class="section active" id="tab-admin">
+  <div class="page-title">Data <span>Siswa</span></div>
+  <div class="page-sub">QR code otomatis tergenerate setiap ada siswa baru terdaftar</div>
+  <div class="info-banner">
+    ℹ️ <strong>Versi Beta / Demo</strong> — Data tersimpan di <strong>localStorage</strong> browser. Untuk produksi sekolah, perlu integrasi backend (lihat catatan di bawah halaman).
+  </div>
+  <div style="display:grid;grid-template-columns:360px 1fr;gap:22px;align-items:start;">
+    <div>
+      <div class="card" style="margin-bottom:18px;">
+        <div style="font-size:14px;font-weight:800;margin-bottom:14px;color:var(--accent);">+ Tambah Siswa Manual</div>
+        <div class="form-grid">
+          <div class="fg full"><label>Nama Lengkap</label><input id="iNama" type="text" placeholder="Ahmad Fauzi"></div>
+          <div class="fg"><label>Kelas</label><input id="iKelas" type="text" placeholder="XII IPA 1"></div>
+          <div class="fg"><label>No. Absen</label><input id="iNo" type="text" placeholder="15"></div>
+          <div class="fg full"><label>Jurusan</label><input id="iJur" type="text" placeholder="RPL / TKJ / MM"></div>
+        </div>
+        <button class="btn btn-p" style="width:100%;" onclick="addSiswa()">➕ Tambah &amp; Generate QR</button>
+      </div>
+      <div class="card">
+        <div style="font-size:14px;font-weight:800;margin-bottom:3px;">📁 Upload CSV / Excel</div>
+        <div style="font-size:12px;color:var(--text2);margin-bottom:12px;">Kolom: <strong style="color:var(--text)">Nama Lengkap, Kelas, No Absen, Jurusan</strong></div>
+        <div class="upload-area" id="uArea" onclick="document.getElementById('fInput').click()">
+          <div style="font-size:28px;margin-bottom:6px;">📂</div>
+          <div style="font-size:13px;color:var(--text2);">Klik atau <strong style="color:var(--accent)">drag &amp; drop</strong> file</div>
+          <div style="font-size:11px;color:var(--text2);margin-top:4px;">.csv · .xlsx · .xls</div>
+        </div>
+        <input type="file" id="fInput" accept=".csv,.xlsx,.xls" style="display:none" onchange="handleFile(this)">
+        <div style="margin-top:12px;"><button class="btn btn-g sm" onclick="dlTemplate()">⬇️ Download Template</button></div>
+      </div>
+    </div>
+    <div class="card">
+      <div class="list-top">
+        <div style="display:flex;align-items:center;gap:10px;"><span style="font-weight:800;">Daftar Siswa</span><span class="cbadge" id="sCnt">0</span></div>
+        <div style="display:flex;gap:8px;flex-wrap:wrap;">
+          <input type="text" placeholder="🔍 Cari..." id="srchS" oninput="renderSiswa()" style="width:180px;">
+          <button class="btn btn-d sm" onclick="cfm('⚠️ Hapus Semua Siswa','Semua data siswa akan dihapus permanen.',()=>{DB.clrS();renderSiswa();notif('Data siswa dihapus','warning');})">🗑️ Hapus Semua</button>
+        </div>
+      </div>
+      <div class="tw"><table>
+        <thead><tr><th>No</th><th>Nama Lengkap</th><th>Kelas</th><th>No Absen</th><th>Jurusan</th><th>Terdaftar</th><th></th></tr></thead>
+        <tbody id="sTbody"></tbody>
+      </table></div>
+    </div>
+  </div>
+</div>
+
+<!-- KARTU QR -->
+<div class="section" id="tab-qrcards">
+  <div style="display:flex;justify-content:space-between;align-items:flex-start;flex-wrap:wrap;gap:12px;margin-bottom:6px;">
+    <div><div class="page-title">Kartu <span>QR Code</span></div><div class="page-sub" style="margin-bottom:0;">QR otomatis tergenerate untuk setiap siswa terdaftar</div></div>
+    <div style="display:flex;gap:8px;align-items:center;">
+      <input type="text" id="srchQR" placeholder="🔍 Cari siswa..." oninput="renderQR()" style="width:200px;">
+      <button class="btn btn-p" onclick="window.print()">🖨️ Print Semua</button>
+    </div>
+  </div>
+  <div class="qr-grid" id="qrGrid"></div>
+</div>
+
+<!-- SCANNER -->
+<div class="section" id="tab-scanner">
+  <div class="page-title">📷 Scan <span>Absensi</span></div>
+  <div class="page-sub">Kamera otomatis memfoto siswa saat QR code valid terdeteksi</div>
+  <div class="sc-layout">
+    <div class="cam-wrapper">
+      <!-- Camera box with fixed overlay canvas -->
+      <div class="cam-box" id="camBox">
+        <div class="cam-inner">
+          <div class="cam-ph" id="camPh">
+            <div class="pi">📷</div>
+            <div style="font-size:13px;margin-bottom:14px;">Kamera belum aktif</div>
+            <button class="btn btn-p" onclick="startCam()">▶️ Aktifkan Kamera</button>
+          </div>
+          <video id="vid" autoplay muted playsinline></video>
+          <canvas id="oCanvas"></canvas>
+          <div class="flash" id="flashEl"></div>
+          <div class="cooldown-ring" id="cooldownRing">
+            <svg viewBox="0 0 38 38">
+              <circle cx="19" cy="19" r="16"/>
+              <circle class="progress" id="cooldownProgress" cx="19" cy="19" r="16"
+                style="stroke-dasharray:100.5;stroke-dashoffset:100.5;"/>
+            </svg>
+          </div>
+        </div>
+      </div>
+
+      <!-- Camera controls -->
+      <div style="display:flex;gap:8px;align-items:center;flex-wrap:wrap;">
+        <button class="btn btn-p sm" id="startBtn" onclick="startCam()">▶️ Aktifkan</button>
+        <button class="btn btn-g sm" id="stopBtn" style="display:none;" onclick="stopCam()">⏹ Stop</button>
+        <button class="btn btn-g sm" id="flipBtn" style="display:none;" onclick="flipCam()" title="Ganti kamera">🔄 Ganti Kamera</button>
+        <select id="camSelect" style="flex:1;min-width:120px;font-size:12px;display:none;" onchange="switchCam(this.value)"></select>
+      </div>
+
+      <div class="sc-bar" id="scBar">
+        <span class="status-dot" id="statusDot"></span>Kamera belum aktif
+      </div>
+    </div>
+
+    <div class="sc-panel">
+      <div class="sc-stats">
+        <div class="sc-stat"><div class="sc-stat-i">✅</div><div class="sc-stat-l">Hadir Hari Ini</div><div class="sc-stat-v" id="cToday" style="color:var(--green);">0</div></div>
+        <div class="sc-stat"><div class="sc-stat-i">👥</div><div class="sc-stat-l">Total Siswa</div><div class="sc-stat-v" id="cTotal" style="color:var(--accent);">0</div></div>
+      </div>
+      <div class="ls-box">
+        <div class="ls-ph" id="lsPh">📷</div>
+        <div class="ls-info">
+          <div class="ls-lbl">Scan Terakhir</div>
+          <div class="ls-name" id="lsName">—</div>
+          <div class="ls-det" id="lsDet">Belum ada scan</div>
+          <div class="ls-time" id="lsTime">—</div>
+        </div>
+      </div>
+      <div class="card" style="padding:14px;flex:1;">
+        <div style="font-size:11px;font-weight:800;margin-bottom:10px;text-transform:uppercase;letter-spacing:.8px;color:var(--text2);">Riwayat Hari Ini</div>
+        <div class="rec-list" id="recList"><div style="text-align:center;color:var(--text2);font-size:12px;padding:14px;">Belum ada riwayat</div></div>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- REKAP -->
+<div class="section" id="tab-rekap">
+  <div class="page-title">📊 Rekap <span>Absensi</span></div>
+  <div class="page-sub">Data kehadiran lengkap dengan foto bukti scan</div>
+  <div class="stats-row">
+    <div class="st-card"><div class="st-num" id="stAll">0</div><div class="st-lbl">Total Absensi</div></div>
+    <div class="st-card"><div class="st-num" id="stTod" style="color:var(--green);">0</div><div class="st-lbl">Hadir Hari Ini</div></div>
+    <div class="st-card"><div class="st-num" id="stSis" style="color:var(--yellow);">0</div><div class="st-lbl">Siswa Terdaftar</div></div>
+    <div class="st-card"><div class="st-num" id="stDay" style="color:var(--accent);">0</div><div class="st-lbl">Hari Tercatat</div></div>
+  </div>
+  <div class="card">
+    <div class="rk-bar">
+      <div class="rk-f">
+        <input type="date" id="fDate" onchange="renderRekap()">
+        <input type="text" id="fCari" placeholder="🔍 Nama / kelas / jurusan..." oninput="renderRekap()" style="width:220px;">
+        <button class="btn btn-g sm" onclick="rstFilter()">✕ Reset</button>
+      </div>
+      <div class="rk-a">
+        <button class="btn btn-s sm" onclick="expExcel()">📥 Export Excel</button>
+        <button class="btn btn-g sm" onclick="window.print()">🖨️ Print</button>
+        <button class="btn btn-d sm" onclick="cfm('⚠️ Hapus Semua Absensi','Semua data kehadiran dan foto akan dihapus permanen.',()=>{DB.clrA();renderRekap();updScan();notif('Data absensi dihapus','warning');})">🗑️ Hapus</button>
+      </div>
+    </div>
+    <div class="tw"><table>
+      <thead><tr><th>No</th><th>Foto</th><th>Nama Lengkap</th><th>Kelas</th><th>No Absen</th><th>Jurusan</th><th>Waktu Scan</th></tr></thead>
+      <tbody id="rkTbody"></tbody>
+    </table></div>
+  </div>
+</div>
+
+</div></div>
+
+<div id="notif"></div>
+<div class="mo" id="moEl">
+  <div class="md">
+    <div class="md-t" id="moT"></div>
+    <div class="md-b" id="moB"></div>
+    <div class="md-a">
+      <button class="btn btn-g" onclick="closeMo()">Batal</button>
+      <button class="btn btn-d" id="moOk">Hapus</button>
+    </div>
+  </div>
+</div>
+
+<!-- Hidden canvas for QR decoding (uses actual video resolution) -->
+<canvas id="sCanvas" style="display:none;"></canvas>
+
+<script>
+// UTILS
+const uid=()=>Date.now().toString(36)+Math.random().toString(36).slice(2,9);
+const fmt=iso=>new Date(iso).toLocaleString('id-ID',{day:'2-digit',month:'short',year:'numeric',hour:'2-digit',minute:'2-digit',second:'2-digit'});
+const fmtD=iso=>new Date(iso).toLocaleDateString('id-ID',{day:'2-digit',month:'short',year:'numeric'});
+const fmtT=iso=>new Date(iso).toLocaleTimeString('id-ID',{hour:'2-digit',minute:'2-digit',second:'2-digit'});
+const isToday=iso=>new Date(iso).toDateString()===new Date().toDateString();
+const $=id=>document.getElementById(id);
+
+// DB (localStorage — beta only)
+const DB={
+  get S(){try{return JSON.parse(localStorage.getItem('qra_s')||'[]')}catch{return[]}},
+  set S(v){localStorage.setItem('qra_s',JSON.stringify(v))},
+  addS(s){this.S=[...this.S,s]},delS(id){this.S=this.S.filter(x=>x.id!==id)},clrS(){localStorage.removeItem('qra_s')},
+  get A(){try{return JSON.parse(localStorage.getItem('qra_a')||'[]')}catch{return[]}},
+  set A(v){localStorage.setItem('qra_a',JSON.stringify(v))},
+  addA(a){this.A=[...this.A,a]},clrA(){localStorage.removeItem('qra_a')},
+  hadirToday(sid){return this.A.some(a=>a.sid===sid&&isToday(a.ts))}
+};
+
+// NOTIF
+let _nt;
+function notif(msg,type='info'){const el=$('notif');el.textContent=msg;el.className=`show ${type}`;clearTimeout(_nt);_nt=setTimeout(()=>el.className='',3500);}
+
+// CONFIRM
+let _cb=null;
+function cfm(t,b,cb){$('moT').textContent=t;$('moB').textContent=b;_cb=cb;$('moEl').classList.add('open');$('moOk').onclick=()=>{closeMo();_cb&&_cb();};}
+function closeMo(){$('moEl').classList.remove('open');}
+
+// TABS
+function showTab(id,btn){
+  // Stop camera if leaving scanner tab
+  if(id!=='scanner'&&_sc) stopCam();
+  document.querySelectorAll('.section').forEach(s=>s.classList.remove('active'));
+  document.querySelectorAll('.nav-tab').forEach(t=>t.classList.remove('active'));
+  $('tab-'+id).classList.add('active');btn.classList.add('active');
+  if(id==='admin')renderSiswa();
+  if(id==='qrcards')renderQR();
+  if(id==='rekap'){renderRekap();updStats();}
+  if(id==='scanner')updScan();
+}
+
+// ADD SISWA
+function addSiswa(){
+  const nama=$('iNama').value.trim(),kelas=$('iKelas').value.trim(),no=$('iNo').value.trim(),jur=$('iJur').value.trim();
+  if(!nama||!kelas||!no||!jur){notif('Semua field wajib diisi!','error');return;}
+  DB.addS({id:uid(),nama,kelas,no,jur,at:new Date().toISOString()});
+  renderSiswa();notif(`✅ ${nama} ditambahkan — QR tergenerate!`,'success');
+  ['iNama','iKelas','iNo','iJur'].forEach(id=>$(id).value='');$('iNama').focus();
+}
+document.addEventListener('keydown',e=>{if(e.key==='Enter'&&$('tab-admin').classList.contains('active'))addSiswa();});
+
+// RENDER SISWA TABLE
+function renderSiswa(){
+  const q=($('srchS').value||'').toLowerCase();
+  let ss=DB.S;if(q)ss=ss.filter(s=>[s.nama,s.kelas,s.jur,s.no].join(' ').toLowerCase().includes(q));
+  $('sCnt').textContent=ss.length;
+  const tb=$('sTbody');
+  if(!ss.length){tb.innerHTML=`<tr><td colspan="7"><div class="empty"><div class="empty-i">👤</div><div class="empty-t">Belum ada data siswa</div></div></td></tr>`;return;}
+  tb.innerHTML=ss.map((s,i)=>`<tr><td class="mono">${i+1}</td><td><strong>${s.nama}</strong></td><td><span class="tag tb">${s.kelas}</span></td><td class="mono">${s.no}</td><td><span class="tag tg">${s.jur}</span></td><td style="font-size:11px;color:var(--text2)">${fmtD(s.at)}</td><td><button class="btn btn-d sm" onclick="delSiswa('${s.id}','${s.nama.replace(/'/g,"\\'")}')">🗑️</button></td></tr>`).join('');
+}
+function delSiswa(id,nama){cfm('🗑️ Hapus Siswa',`Hapus "${nama}"? Riwayat absensinya tetap tersimpan.`,()=>{DB.delS(id);renderSiswa();notif('Siswa dihapus','warning');});}
+
+// FILE UPLOAD
+function handleFile(input){const f=input.files[0];if(!f)return;doUpload(f);input.value='';}
+function doUpload(f){
+  const r=new FileReader();
+  r.onload=e=>{
+    try{
+      const wb=XLSX.read(new Uint8Array(e.target.result),{type:'array'});
+      const rows=XLSX.utils.sheet_to_json(wb.Sheets[wb.SheetNames[0]],{defval:''});
+      let n=0;
+      rows.forEach(row=>{
+        const nama=(row['Nama Lengkap']||row['nama']||row['Nama']||'').toString().trim();
+        const kelas=(row['Kelas']||row['kelas']||'').toString().trim();
+        const no=(row['No Absen']||row['no_absen']||row['noAbsen']||row['No']||'').toString().trim();
+        const jur=(row['Jurusan']||row['jurusan']||'').toString().trim();
+        if(nama){DB.addS({id:uid(),nama,kelas,no,jur,at:new Date().toISOString()});n++;}
+      });
+      renderSiswa();notif(`✅ Berhasil import ${n} siswa!`,'success');
+    }catch(err){notif('Gagal baca file: '+err.message,'error');}
+  };r.readAsArrayBuffer(f);
+}
+function dlTemplate(){
+  const ws=XLSX.utils.aoa_to_sheet([['Nama Lengkap','Kelas','No Absen','Jurusan'],['Ahmad Fauzi','XII IPA 1','1','RPL'],['Siti Rahayu','XI IPS 2','2','TKJ']]);
+  ws['!cols']=[{wch:25},{wch:14},{wch:10},{wch:14}];
+  const wb=XLSX.utils.book_new();XLSX.utils.book_append_sheet(wb,ws,'Siswa');XLSX.writeFile(wb,'template_siswa.xlsx');
+}
+const ua=$('uArea');
+ua.addEventListener('dragover',e=>{e.preventDefault();ua.classList.add('over');});
+ua.addEventListener('dragleave',()=>ua.classList.remove('over'));
+ua.addEventListener('drop',e=>{e.preventDefault();ua.classList.remove('over');const f=e.dataTransfer.files[0];if(f)doUpload(f);});
+
+// QR CARDS
+function renderQR(){
+  const q=($('srchQR').value||'').toLowerCase();
+  let ss=DB.S;if(q)ss=ss.filter(s=>[s.nama,s.kelas,s.jur].join(' ').toLowerCase().includes(q));
+  const g=$('qrGrid');
+  if(!ss.length){g.innerHTML=`<div class="empty card" style="grid-column:1/-1"><div class="empty-i">🎫</div><div class="empty-t">Tambahkan siswa untuk melihat kartu QR</div></div>`;return;}
+  g.innerHTML=ss.map(s=>`<div class="qr-card"><div class="qr-box" id="qr${s.id}"></div><div class="qr-name">${s.nama}</div><div class="qr-det">${s.kelas} · No.Absen ${s.no}</div><div class="qr-det">${s.jur}</div><div class="qr-id">${s.id.slice(0,14)}</div></div>`).join('');
+  ss.forEach(s=>{const el=$('qr'+s.id);if(el&&!el.querySelector('canvas,img')){try{new QRCode(el,{text:s.id,width:122,height:122,colorDark:'#000',colorLight:'#fff',correctLevel:QRCode.CorrectLevel.M});}catch(e){}}});
+}
+
+// =============================================
+// CAMERA SYSTEM — FULLY FIXED
+// =============================================
+let _str = null;       // MediaStream
+let _raf = null;       // requestAnimationFrame id
+let _sc  = false;      // scanning active
+let _last = 0;         // last successful scan timestamp
+let _camFacing = 'environment'; // current facing mode
+let _camDevices = [];  // list of video devices
+let _curDeviceId = null;
+
+const COOL = 2500; // cooldown ms between scans (reduced from 4000)
+
+const vid      = $('vid');
+const oC       = $('oCanvas');
+const oX       = oC.getContext('2d');
+const sC       = $('sCanvas');
+const sX       = sC.getContext('2d');
+const flashEl  = $('flashEl');
+const coolRing = $('cooldownRing');
+const coolProg = $('cooldownProgress');
+
+// Circumference of the progress ring (r=16 → 2πr ≈ 100.5)
+const CIRC = 2 * Math.PI * 16;
+
+// Enumerate available cameras and populate selector
+async function enumCams(){
+  try{
+    const devs = await navigator.mediaDevices.enumerateDevices();
+    _camDevices = devs.filter(d=>d.kind==='videoinput');
+    const sel = $('camSelect');
+    if(_camDevices.length > 1){
+      sel.innerHTML = _camDevices.map((d,i)=>
+        `<option value="${d.deviceId}">${d.label||'Kamera '+(i+1)}</option>`
+      ).join('');
+      sel.style.display = '';
+      $('flipBtn').style.display = 'inline-flex';
+    }
+  }catch(e){}
+}
+
+async function startCam(){
+  // Prevent double-start
+  if(_sc) return;
+
+  setStatus('yellow','⏳ Meminta akses kamera...');
+  $('startBtn').style.display = 'none';
+
+  const constraints = {
+    video: _curDeviceId
+      ? { deviceId: { exact: _curDeviceId }, width:{ideal:1280}, height:{ideal:720} }
+      : { facingMode: _camFacing,            width:{ideal:1280}, height:{ideal:720} }
+  };
+
+  try{
+    _str = await navigator.mediaDevices.getUserMedia(constraints);
+    vid.srcObject = _str;
+
+    // Wait for metadata so videoWidth/videoHeight are available
+    await new Promise((res,rej)=>{
+      vid.onloadedmetadata = res;
+      vid.onerror = rej;
+    });
+
+    await vid.play();
+
+    vid.style.display = 'block';
+    $('camPh').style.display = 'none';
+    $('stopBtn').style.display = 'inline-flex';
+    _sc = true;
+
+    // Enumerate cameras now that permission is granted
+    await enumCams();
+
+    // Set current deviceId from active track
+    const track = _str.getVideoTracks()[0];
+    if(track){
+      const settings = track.getSettings();
+      _curDeviceId = settings.deviceId || null;
+      // Sync selector
+      const sel = $('camSelect');
+      if(_curDeviceId && sel) sel.value = _curDeviceId;
+    }
+
+    setStatus('green','🟢 Kamera aktif — Arahkan QR code ke kamera');
+    requestAnimationFrame(loop);
+    updScan();
+
+  }catch(err){
+    $('startBtn').style.display = 'inline-flex';
+    // If environment camera fails, try user-facing
+    if(_camFacing === 'environment'){
+      _camFacing = 'user';
+      notif('Kamera belakang tidak tersedia, mencoba kamera depan...','warning');
+      startCam();
+    } else {
+      setStatus('red','❌ Tidak bisa akses kamera: '+err.message);
+      notif('Gagal akses kamera. Izinkan di browser.','error');
+    }
+  }
+}
+
+function stopCam(){
+  _sc = false;
+  if(_raf) cancelAnimationFrame(_raf);
+  _raf = null;
+  if(_str) _str.getTracks().forEach(t=>t.stop());
+  _str = null;
+  vid.style.display = 'none';
+  vid.srcObject = null;
+  $('camPh').style.display = 'flex';
+  $('stopBtn').style.display = 'none';
+  $('flipBtn').style.display = 'none';
+  $('camSelect').style.display = 'none';
+  $('startBtn').style.display = 'inline-flex';
+  oX.clearRect(0,0,oC.width,oC.height);
+  coolRing.style.display = 'none';
+  setStatus('','Kamera dihentikan');
+}
+
+// Flip to next camera
+function flipCam(){
+  const devs = _camDevices;
+  if(!devs.length) return;
+  const cur = devs.findIndex(d=>d.deviceId===_curDeviceId);
+  const next = devs[(cur+1)%devs.length];
+  _curDeviceId = next.deviceId;
+  $('camSelect').value = _curDeviceId;
+  restartCam();
+}
+
+// Switch via dropdown
+function switchCam(deviceId){
+  _curDeviceId = deviceId;
+  restartCam();
+}
+
+function restartCam(){
+  stopCam();
+  setTimeout(startCam, 200);
+}
+
+// Main decode loop — runs per animation frame
+function loop(){
+  if(!_sc){ return; }
+
+  // FIX: Use video's intrinsic resolution for the decode canvas
+  const vw = vid.videoWidth;
+  const vh = vid.videoHeight;
+
+  if(vid.readyState >= 2 && vw > 0 && vh > 0){
+    // Decode canvas = native video resolution (accuracy)
+    sC.width  = vw;
+    sC.height = vh;
+    sX.drawImage(vid, 0, 0);
+
+    // Overlay canvas = display size of the video element (for drawing)
+    // Use getBoundingClientRect for accurate display dimensions
+    const rect = vid.getBoundingClientRect();
+    oC.width  = rect.width  || vid.offsetWidth  || vw;
+    oC.height = rect.height || vid.offsetHeight || vh;
+
+    const img = sX.getImageData(0, 0, sC.width, sC.height);
+    const code = jsQR(img.data, img.width, img.height, {inversionAttempts:'attemptBoth'});
+
+    const now = Date.now();
+    const coolRemaining = COOL - (now - _last);
+
+    if(code){
+      drawBox(code.location);
+      if(coolRemaining <= 0){
+        _last = now;
+        procQR(code.data);
+      } else {
+        // Show cooldown visual
+        showCooldown(coolRemaining);
+      }
+    } else {
+      drawGuide();
+      if(coolRemaining > 0) showCooldown(coolRemaining);
+      else { coolRing.style.display = 'none'; }
+    }
+  } else {
+    drawGuide();
+  }
+
+  _raf = requestAnimationFrame(loop);
+}
+
+function showCooldown(remaining){
+  coolRing.style.display = 'block';
+  const pct = remaining / COOL; // 1 → 0 as cooldown expires
+  const offset = CIRC * (1 - pct);
+  coolProg.style.strokeDashoffset = CIRC - offset;
+}
+
+// Draw scanning guide (corner brackets + sweep line)
+function drawGuide(){
+  oX.clearRect(0,0,oC.width,oC.height);
+  const w=oC.width, h=oC.height;
+  const sz=Math.min(w,h)*0.6;
+  const x=(w-sz)/2, y=(h-sz)/2;
+  const cs=28;
+
+  oX.strokeStyle='rgba(0,201,255,.65)';
+  oX.lineWidth=3;
+  oX.lineCap='round';
+  [[x,y,1,1],[x+sz,y,-1,1],[x,y+sz,1,-1],[x+sz,y+sz,-1,-1]].forEach(([cx,cy,dx,dy])=>{
+    oX.beginPath();
+    oX.moveTo(cx+dx*cs,cy);oX.lineTo(cx,cy);oX.lineTo(cx,cy+dy*cs);
+    oX.stroke();
+  });
+
+  // Sweep line
+  const p=(Date.now()%2000)/2000;
+  const ly=y+sz*p;
+  const g=oX.createLinearGradient(x,ly,x+sz,ly);
+  g.addColorStop(0,'transparent');
+  g.addColorStop(.5,'rgba(0,201,255,.75)');
+  g.addColorStop(1,'transparent');
+  oX.strokeStyle=g;oX.lineWidth=2;
+  oX.beginPath();oX.moveTo(x,ly);oX.lineTo(x+sz,ly);oX.stroke();
+}
+
+// Draw green box around detected QR
+// FIX: Scale from video native resolution → display resolution
+function drawBox(loc){
+  oX.clearRect(0,0,oC.width,oC.height);
+  const sx = oC.width  / sC.width;
+  const sy = oC.height / sC.height;
+  const pts = [
+    loc.topLeftCorner, loc.topRightCorner,
+    loc.bottomRightCorner, loc.bottomLeftCorner
+  ];
+  oX.strokeStyle='#00e5a0';
+  oX.lineWidth=3;
+  oX.shadowColor='#00e5a0';
+  oX.shadowBlur=12;
+  oX.beginPath();
+  oX.moveTo(pts[0].x*sx, pts[0].y*sy);
+  pts.slice(1).forEach(p=>oX.lineTo(p.x*sx, p.y*sy));
+  oX.closePath();
+  oX.stroke();
+  oX.shadowBlur=0;
+}
+
+// Process a detected QR code value
+function procQR(data){
+  const s=DB.S.find(x=>x.id===data);
+  if(!s){
+    setStatus('red','❌ QR tidak dikenal / tidak terdaftar');
+    notif('❌ QR tidak dikenal','error');
+    return;
+  }
+  if(DB.hadirToday(s.id)){
+    setStatus('yellow',`⚠️ ${s.nama} sudah absen hari ini`);
+    notif(`⚠️ ${s.nama} sudah absen hari ini`,'warning');
+    return;
+  }
+
+  // Capture photo from video frame
+  const pc=document.createElement('canvas');
+  pc.width=vid.videoWidth;
+  pc.height=vid.videoHeight;
+  pc.getContext('2d').drawImage(vid,0,0);
+  const photo=pc.toDataURL('image/jpeg',.75);
+
+  // Flash effect
+  flashEl.classList.add('on');
+  setTimeout(()=>flashEl.classList.remove('on'),300);
+
+  // Save record
+  const rec={id:uid(),sid:s.id,nama:s.nama,kelas:s.kelas,no:s.no,jur:s.jur,ts:new Date().toISOString(),photo};
+  DB.addA(rec);
+
+  setStatus('green',`✅ ${s.nama} — ${s.kelas} · ${s.jur} · No.${s.no}`);
+  notif(`✅ ${s.nama} berhasil absen!`,'success');
+
+  // Update last scan panel
+  $('lsPh').innerHTML=`<img src="${photo}" class="ls-photo">`;
+  $('lsName').textContent=s.nama;
+  $('lsDet').textContent=`${s.kelas} · No.${s.no} · ${s.jur}`;
+  $('lsTime').textContent=fmt(rec.ts);
+  updScan();
+}
+
+// Update status bar
+function setStatus(color, msg){
+  const dot=$('statusDot');
+  dot.className='status-dot'+(color?' '+color:'');
+  const bar=$('scBar');
+  bar.innerHTML='';
+  bar.appendChild(dot.cloneNode());
+  bar.appendChild(document.createTextNode(msg));
+  $('statusDot').className='status-dot'+(color?' '+color:'');
+}
+
+function updScan(){
+  const today=DB.A.filter(a=>isToday(a.ts));
+  $('cToday').textContent=today.length;
+  $('cTotal').textContent=DB.S.length;
+  const el=$('recList');
+  const recent=today.slice().reverse().slice(0,8);
+  if(!recent.length){el.innerHTML='<div style="text-align:center;color:var(--text2);font-size:12px;padding:14px;">Belum ada riwayat</div>';return;}
+  el.innerHTML=recent.map(a=>`<div class="rec-item"><img src="${a.photo}" class="rec-th" onerror="this.style.display='none'"><div><div class="rec-n">${a.nama}</div><div class="rec-t">${a.kelas} · ${fmtT(a.ts)}</div></div></div>`).join('');
+}
+
+// REKAP
+function renderRekap(){
+  const fd=$('fDate').value,fc=($('fCari').value||'').toLowerCase();
+  let att=DB.A.slice().sort((a,b)=>new Date(b.ts)-new Date(a.ts));
+  if(fd)att=att.filter(a=>new Date(a.ts).toLocaleDateString('en-CA')===fd);
+  if(fc)att=att.filter(a=>[a.nama,a.kelas,a.jur,a.no].join(' ').toLowerCase().includes(fc));
+  const tb=$('rkTbody');
+  if(!att.length){tb.innerHTML=`<tr><td colspan="7"><div class="empty"><div class="empty-i">📊</div><div class="empty-t">Tidak ada data absensi</div></div></td></tr>`;updStats();return;}
+  tb.innerHTML=att.map((a,i)=>`<tr><td class="mono">${i+1}</td><td><img src="${a.photo}" class="att-ph" onerror="this.outerHTML='<span style=\\'font-size:24px\\'>👤</span>'"></td><td><strong>${a.nama}</strong></td><td><span class="tag tb">${a.kelas}</span></td><td class="mono">${a.no}</td><td><span class="tag tg">${a.jur}</span></td><td style="font-size:11px;color:var(--text2)">${fmt(a.ts)}</td></tr>`).join('');
+  updStats();
+}
+function updStats(){
+  const att=DB.A,today=att.filter(a=>isToday(a.ts)),days=new Set(att.map(a=>new Date(a.ts).toDateString())).size;
+  $('stAll').textContent=att.length;$('stTod').textContent=today.length;$('stSis').textContent=DB.S.length;$('stDay').textContent=days;
+}
+function rstFilter(){$('fDate').value='';$('fCari').value='';renderRekap();}
+function expExcel(){
+  const att=DB.A.slice().sort((a,b)=>new Date(a.ts)-new Date(b.ts));
+  if(!att.length){notif('Tidak ada data untuk diexport','warning');return;}
+  const rows=[['No','Nama Lengkap','Kelas','No Absen','Jurusan','Tanggal','Jam'],...att.map((a,i)=>[i+1,a.nama,a.kelas,a.no,a.jur,fmtD(a.ts),fmtT(a.ts)])];
+  const ws=XLSX.utils.aoa_to_sheet(rows);ws['!cols']=[{wch:5},{wch:25},{wch:14},{wch:10},{wch:14},{wch:16},{wch:12}];
+  const wb=XLSX.utils.book_new();XLSX.utils.book_append_sheet(wb,ws,'Rekap Absensi');
+  XLSX.writeFile(wb,`Absensi_${new Date().toLocaleDateString('id-ID').replace(/\//g,'-')}.xlsx`);
+  notif('✅ File Excel didownload!','success');
+}
+
+// CLOCK
+function tick(){$('clockDisplay').textContent=new Date().toLocaleString('id-ID',{weekday:'short',day:'2-digit',month:'short',year:'numeric',hour:'2-digit',minute:'2-digit',second:'2-digit'});}
+setInterval(tick,1000);tick();
+
+// Stop camera when page/tab is hidden (battery saving + prevents ghost streams)
+document.addEventListener('visibilitychange',()=>{
+  if(document.hidden && _sc) stopCam();
+});
+
+// INIT
+renderSiswa();updStats();
+$('fDate').value=new Date().toLocaleDateString('en-CA');
+</script>
+</body>
+</html>
